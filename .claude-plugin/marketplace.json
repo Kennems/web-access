@@ -1,5 +1,5 @@
 {
-  "name": "web-access",
+  "name": "webaccess-edge",
   "owner": {
     "name": "一泽 Eze"
   },
@@ -8,8 +8,8 @@
   },
   "plugins": [
     {
-      "name": "web-access",
-      "description": "All web operations: search, fetch, CDP browser automation, site experience accumulation",
+      "name": "webaccess-edge",
+      "description": "Edge-only CDP browser automation: fixed local Edge port 49706, proxy port 3457",
       "source": "./",
       "category": "productivity",
       "tags": ["web", "browser", "cdp", "automation", "search"]

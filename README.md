@@ -165,16 +165,16 @@ Proxy 通过 WebSocket 直连浏览器（兼容 `chrome://inspect` / `edge://ins
 node "${CLAUDE_SKILL_DIR}/scripts/cdp-proxy.mjs" &
 
 # 页面操作
-curl -s -X POST --data-raw 'https://example.com' http://localhost:3456/new  # 新建 tab（v2.5.3 起 URL 走 POST body）
-curl -s -X POST "http://localhost:3456/eval?target=ID" -d 'document.title'  # 执行 JS
-curl -s -X POST "http://localhost:3456/click?target=ID" -d 'button.submit'  # JS 点击
-curl -s -X POST "http://localhost:3456/clickAt?target=ID" -d '.upload-btn'  # 真实鼠标点击
-curl -s -X POST "http://localhost:3456/setFiles?target=ID" \
+curl -s -X POST --data-raw 'https://example.com' http://localhost:3457/new  # 新建 tab（v2.5.3 起 URL 走 POST body）
+curl -s -X POST "http://localhost:3457/eval?target=ID" -d 'document.title'  # 执行 JS
+curl -s -X POST "http://localhost:3457/click?target=ID" -d 'button.submit'  # JS 点击
+curl -s -X POST "http://localhost:3457/clickAt?target=ID" -d '.upload-btn'  # 真实鼠标点击
+curl -s -X POST "http://localhost:3457/setFiles?target=ID" \
   -d '{"selector":"input[type=file]","files":["/path/to/file.png"]}'        # 文件上传
-curl -s "http://localhost:3456/screenshot?target=ID&file=/tmp/shot.png"     # 截图
-curl -s "http://localhost:3456/scroll?target=ID&direction=bottom"           # 滚动
-curl -s "http://localhost:3456/close?target=ID"                             # 关闭 tab
-curl -s "http://localhost:3456/health"                                      # 查看状态（含 managedTabs 数量）
+curl -s "http://localhost:3457/screenshot?target=ID&file=/tmp/shot.png"     # 截图
+curl -s "http://localhost:3457/scroll?target=ID&direction=bottom"           # 滚动
+curl -s "http://localhost:3457/close?target=ID"                             # 关闭 tab
+curl -s "http://localhost:3457/health"                                      # 查看状态（含 managedTabs 数量）
 ```
 
 Proxy 会自动追踪通过 `/new` 创建的 tab，闲置 15 分钟后自动关闭，防止 Agent 异常退出时留下孤儿 tab。可通过环境变量 `CDP_TAB_IDLE_TIMEOUT`（单位毫秒）调整超时时间。

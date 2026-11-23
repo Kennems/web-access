@@ -1,16 +1,26 @@
 ---
-name: web-access
+name: webaccess-edge
 license: MIT
-github: https://github.com/eze-is/web-access
+github: https://github.com/Kennems/web-access
 description:
-  所有联网操作必须通过此 skill 处理，包括：搜索、网页抓取、登录后操作、网络交互等。
-  触发场景：用户要求搜索信息、查看网页内容、访问需要登录的网站、操作网页界面、抓取社交媒体内容（小红书、微博、推特等）、读取动态渲染页面、以及任何需要真实浏览器环境的网络任务。
+  Edge 专用浏览器自动化通道。凡是需要用当前 Microsoft Edge 浏览器进行联网操作（搜索、网页抓取、登录后操作、网页交互、读取动态渲染页面）时使用本 skill。
+  本 skill 固定连接本机 Edge 的 CDP 调试端口 49706，使用独立的 3457 代理端口，不碰原 web-access 的 3456 通道。
 metadata:
   author: 一泽Eze
-  version: "2.5.4"
+  version: "2.5.4-edge"
+  upstream: https://github.com/eze-is/web-access
+  fork: https://github.com/Kennems/web-access
 ---
 
-# web-access Skill
+# webaccess-edge Skill（Edge 专用）
+
+## 本机固定事实（不要重新摸索）
+- 本机 Edge 远程调试端口固定为 **49706**，已在 `edge://inspect/#remote-debugging` 勾选允许。
+- 调试端口文件 `~/Library/Application Support/Microsoft Edge/DevToolsActivePort` 被 macOS 隐私权限挡住，shell 读不到；**不要申请完全磁盘访问权限，也不要用 `--browser edge`**（会硬报错）。
+- 正确启动方式：直接跑下面的 `check-deps.mjs`，脚本通过 fallback 端口列表首位 `49706` 自动连 Edge。
+- 代理端口是 **3457**，与原 web-access 的 3456 并存。所有 API 都用 `http://localhost:3457`。
+- 重置通道时只重置本 skill：`pkill -f 'webaccess-edge/scripts/cdp-proxy.mjs'`，不要用全局 `pkill -f cdp-proxy.mjs`（会杀掉原 web-access 的通道）。
+- 原 web-access 的 `config.env` 偏好与本 skill 无关；本 skill 的 `WEB_ACCESS_BROWSER` 永远保持空。
 
 ## 前置检查
 
@@ -123,39 +133,39 @@ node "${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs"
 
 ```bash
 # 列出用户已打开的 tab
-curl -s http://localhost:3456/targets
+curl -s http://localhost:3457/targets
 
 # 创建新后台 tab（自动等待加载）— URL 走 POST body，避免目标 URL 含 query 时被切分
-curl -s -X POST --data-raw 'https://example.com' http://localhost:3456/new
+curl -s -X POST --data-raw 'https://example.com' http://localhost:3457/new
 
 # 页面信息
-curl -s "http://localhost:3456/info?target=ID"
+curl -s "http://localhost:3457/info?target=ID"
 
 # 执行任意 JS：可读写 DOM、提取数据、操控元素、触发状态变更、提交表单、调用内部方法
-curl -s -X POST "http://localhost:3456/eval?target=ID" -d 'document.title'
+curl -s -X POST "http://localhost:3457/eval?target=ID" -d 'document.title'
 
 # 捕获页面渲染状态（含视频当前帧）
-curl -s "http://localhost:3456/screenshot?target=ID&file=/tmp/shot.png"
+curl -s "http://localhost:3457/screenshot?target=ID&file=/tmp/shot.png"
 
 # 导航（URL 走 POST body，target 走 query）、后退
-curl -s -X POST --data-raw 'https://example.com' "http://localhost:3456/navigate?target=ID"
-curl -s "http://localhost:3456/back?target=ID"
+curl -s -X POST --data-raw 'https://example.com' "http://localhost:3457/navigate?target=ID"
+curl -s "http://localhost:3457/back?target=ID"
 
 # 点击（POST body 为 CSS 选择器）— JS el.click()，简单快速，覆盖大多数场景
-curl -s -X POST "http://localhost:3456/click?target=ID" -d 'button.submit'
+curl -s -X POST "http://localhost:3457/click?target=ID" -d 'button.submit'
 
 # 真实鼠标点击 — CDP Input.dispatchMouseEvent，算用户手势，能触发文件对话框
-curl -s -X POST "http://localhost:3456/clickAt?target=ID" -d 'button.upload'
+curl -s -X POST "http://localhost:3457/clickAt?target=ID" -d 'button.upload'
 
 # 文件上传 — 直接设置 file input 的本地文件路径，绕过文件对话框
-curl -s -X POST "http://localhost:3456/setFiles?target=ID" -d '{"selector":"input[type=file]","files":["/path/to/file.png"]}'
+curl -s -X POST "http://localhost:3457/setFiles?target=ID" -d '{"selector":"input[type=file]","files":["/path/to/file.png"]}'
 
 # 滚动（触发懒加载）
-curl -s "http://localhost:3456/scroll?target=ID&y=3000"
-curl -s "http://localhost:3456/scroll?target=ID&direction=bottom"
+curl -s "http://localhost:3457/scroll?target=ID&y=3000"
+curl -s "http://localhost:3457/scroll?target=ID&direction=bottom"
 
 # 关闭 tab
-curl -s "http://localhost:3456/close?target=ID"
+curl -s "http://localhost:3457/close?target=ID"
 ```
 
 ### 页面内导航
@@ -213,7 +223,7 @@ Proxy 持续运行，不建议主动停止——重启后需要在浏览器中�
 **并行 CDP 操作**：每个子 Agent 在当前用户浏览器实例中，自行创建所需的后台 tab（`/new`），自行操作，任务结束自行关闭（`/close`）。所有子 Agent 共享一个浏览器、一个 Proxy，通过不同 targetId 操作不同 tab，无竞态风险。
 
 **子 Agent Prompt 写法：目标导向，而非步骤指令**
-- 必须在子 Agent prompt 中写 `必须加载 web-access skill 并遵循指引` ，子 Agent 会自动加载 skill，无需在 prompt 中复制 skill 内容或指定路径。
+- 必须在子 Agent prompt 中写 `必须加载 webaccess-edge skill 并遵循指引` ，子 Agent 会自动加载 skill，无需在 prompt 中复制 skill 内容或指定路径。
 - 子 Agent 有自主判断能力。主 Agent 的职责是说清楚**要什么**，仅在必要与确信时限定**怎么做**。过度指定步骤会剥夺子 Agent 的判断空间，反而引入主 Agent 的假设错误。**避免 prompt 用词对子 Agent 行为的暗示**：「搜索xx」会把子 Agent 锚定到 WebSearch，而实际上有些反爬站点需要 CDP 直接访问主站才能有效获取内容。主 Agent 写 prompt 时应描述目标（「获取」「调研」「了解」），避免用暗示具体手段的动词（「搜索」「抓取」「爬取」）。
 
 **分治判断标准：**

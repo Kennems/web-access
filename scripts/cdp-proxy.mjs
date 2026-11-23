@@ -22,7 +22,7 @@ function parseBrowserArg() {
 }
 const BROWSER_OVERRIDE = parseBrowserArg();
 
-const PORT = parseInt(process.env.CDP_PROXY_PORT || '3456');
+const PORT = parseInt(process.env.CDP_PROXY_PORT || '3457');
 let ws = null;
 let cmdId = 0;
 const pending = new Map(); // id -> {resolve, timer}
@@ -92,7 +92,7 @@ async function discoverChromePort() {
   // 仅在「从未成功连接 + 无偏好/override」时允许固定端口兜底（手动 --remote-debugging-port 启动场景）
   const fallback = await findFallbackPort();
   if (fallback !== null) {
-    connectedBrowser = { id: 'unknown', label: '未知（通过手动调试端口连接）', source: 'fallback' };
+    connectedBrowser = { id: 'edge', label: 'Microsoft Edge（固定调试口）', source: 'fallback' };
     console.log(`[CDP Proxy] 通过手动调试端口连接: ${fallback.port}${fallback.wsPath ? '，带 wsPath' : ''}`);
     return { port: fallback.port, wsPath: fallback.wsPath };
   }
@@ -359,7 +359,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({
           error: 'v2.5.3 起 /new 改为 POST 传 URL（避免目标 URL 含 query 时被错误切分）',
           migration: 'references/migration-2.5.3.md',
-          example: "curl -X POST --data-raw 'https://example.com' http://localhost:3456/new",
+          example: "curl -X POST --data-raw 'https://example.com' http://localhost:3457/new",
         }));
         return;
       }
@@ -398,7 +398,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({
           error: 'v2.5.3 起 /navigate 改为 POST 传 URL（避免目标 URL 含 query 时被错误切分）',
           migration: 'references/migration-2.5.3.md',
-          example: "curl -X POST --data-raw 'https://example.com' 'http://localhost:3456/navigate?target=ID'",
+          example: "curl -X POST --data-raw 'https://example.com' 'http://localhost:3457/navigate?target=ID'",
         }));
         return;
       }

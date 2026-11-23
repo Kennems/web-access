@@ -17,7 +17,7 @@ import { selectBrowser, knownBrowsers, findFallbackPort } from './browser-discov
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROXY_SCRIPT = path.join(ROOT, 'scripts', 'cdp-proxy.mjs');
-const PROXY_PORT = Number(process.env.CDP_PROXY_PORT || 3456);
+const PROXY_PORT = Number(process.env.CDP_PROXY_PORT || 3457);
 const CONFIG_PATH = path.join(ROOT, 'config.env');
 const CONFIG_TEMPLATE = path.join(ROOT, 'templates', 'config.env.template');
 
@@ -62,7 +62,7 @@ function httpGetJson(url, timeoutMs = 3000) {
 }
 
 function startProxyDetached(browserOverride) {
-  const logFile = path.join(os.tmpdir(), 'cdp-proxy.log');
+  const logFile = path.join(os.tmpdir(), 'cdp-proxy-edge.log');
   const logFd = fs.openSync(logFile, 'a');
   const args = [PROXY_SCRIPT];
   if (browserOverride) args.push('--browser', browserOverride);
@@ -113,7 +113,7 @@ async function ensureProxy(expectedBrowserId, browserOverride) {
   }
 
   console.log('❌ 连接超时，请检查浏览器调试设置');
-  console.log(`  日志：${path.join(os.tmpdir(), 'cdp-proxy.log')}`);
+  console.log(`  日志：${path.join(os.tmpdir(), 'cdp-proxy-edge.log')}`);
   return false;
 }
 
@@ -167,7 +167,7 @@ async function resolveAndReport(override) {
       // 末路兜底：尝试常见固定端口（用户手动 --remote-debugging-port=9222 启动的场景）
       const fallbackPort = await findFallbackPort();
       if (fallbackPort) {
-        console.log(`browser: ok (port ${fallbackPort.port}) [通过手动调试端口连接]`);
+        console.log(`browser: ok (Microsoft Edge, port ${fallbackPort.port}) [Edge 固定调试口]`);
         return { proceed: true };
       }
       console.log('browser: 未连接 — 没有任何浏览器打开远程调试开关');

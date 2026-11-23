@@ -3,11 +3,11 @@
 ## TL;DR
 
 ```diff
-- curl -s "http://localhost:3456/new?url=https://example.com"
-+ curl -s -X POST --data-raw 'https://example.com' http://localhost:3456/new
+- curl -s "http://localhost:3457/new?url=https://example.com"
++ curl -s -X POST --data-raw 'https://example.com' http://localhost:3457/new
 
-- curl -s "http://localhost:3456/navigate?target=ID&url=https://example.com"
-+ curl -s -X POST --data-raw 'https://example.com' "http://localhost:3456/navigate?target=ID"
+- curl -s "http://localhost:3457/navigate?target=ID&url=https://example.com"
++ curl -s -X POST --data-raw 'https://example.com' "http://localhost:3457/navigate?target=ID"
 ```
 
 旧写法收到 `400` + 包含本文档路径的错误信息后，按下方对照表改写调用。同时把发现的旧写法在源站点经验文件中就地修正。
@@ -52,7 +52,7 @@ v2.5.3 把 URL 改为通过 **POST body** 传入。HTTP body 是不透明字节�
 
 在迁移后的环境中工作时，遇到任何来源的 web-access 调用，按以下顺序处理：
 
-1. **判断调用是否过时**：搜索字符串 `localhost:3456/new?url=` 或 `localhost:3456/navigate?` 后跟 `&url=`。这两类模式属于 v2.5.2 旧写法。
+1. **判断调用是否过时**：搜索字符串 `localhost:3457/new?url=` 或 `localhost:3457/navigate?` 后跟 `&url=`。这两类模式属于 v2.5.2 旧写法。
 2. **就地改写**：按上表对照修改成 POST 形式。
 3. **更新源文件**：如果旧写法来自 `references/site-patterns/*.md` 中某个站点经验文件，把源文件也一并修正掉（不要只在当前调用上改）—— 这样下次复用同一站点经验时不会再踩坑。
 4. **保留 URL 原样**：POST body 是不透明字节流，目标 URL 中的 `?`、`&`、`=`、`#`、`%` 等字符**无需任何转义**，从 DOM/分享链接抓到什么样就传什么样。

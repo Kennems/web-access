@@ -178,7 +178,8 @@ async function probeWsEndpoint(port, path) {
 }
 
 export async function findFallbackPort() {
-  for (const port of [9222, 9229, 9333]) {
+  // Edge 专用副本：本机 Edge 调试口固定 49706，放首位；保留其他端口兜底
+  for (const port of [49706, 9222, 9229, 9333]) {
     if (!(await checkPort(port))) continue;
     try {
       const res = await fetch(`http://127.0.0.1:${port}/json/version`, {

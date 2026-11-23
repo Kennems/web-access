@@ -2,7 +2,7 @@
 
 ## 基础信息
 
-- 地址：`http://localhost:3456`
+- 地址：`http://localhost:3457`
 - 启动：`node ~/.claude/skills/web-access/scripts/cdp-proxy.mjs &`
 - 启动后持续运行，不建议主动停止（重启需 Chrome 重新授权）
 - 强制停止：`pkill -f cdp-proxy.mjs`
@@ -12,34 +12,34 @@
 ### GET /health
 健康检查，返回连接状态。
 ```bash
-curl -s http://localhost:3456/health
+curl -s http://localhost:3457/health
 ```
 
 ### GET /targets
 列出所有已打开的页面 tab。返回数组，每项含 `targetId`、`title`、`url`。
 ```bash
-curl -s http://localhost:3456/targets
+curl -s http://localhost:3457/targets
 ```
 
 ### POST /new
 创建新后台 tab。Proxy 会先创建 `about:blank`、完成 CDP attach，再显式导航并等待目标 URL 的 DOM 至少进入 `interactive`，避免把新标签页初始的空白文档误判为目标页面。**URL 通过 POST body 原样传入**，无需 URL-encode、不会因 query 中含 `&` 被切分。返回 `{ targetId }`。
 ```bash
-curl -s -X POST --data-raw 'https://example.com' http://localhost:3456/new
+curl -s -X POST --data-raw 'https://example.com' http://localhost:3457/new
 # 含 query 的目标 URL（如带 token 的小红书笔记）也直接原样传：
-curl -s -X POST --data-raw 'https://www.xiaohongshu.com/explore/xxx?xsec_source=app_share&xsec_token=ABC&type=normal' http://localhost:3456/new
+curl -s -X POST --data-raw 'https://www.xiaohongshu.com/explore/xxx?xsec_source=app_share&xsec_token=ABC&type=normal' http://localhost:3457/new
 ```
 > v2.5.3 起改为 POST。旧的 `GET /new?url=...` 返回 400 + 迁移指引，详见 `migration-2.5.3.md`。
 
 ### GET /close?target=ID
 关闭指定 tab。
 ```bash
-curl -s "http://localhost:3456/close?target=TARGET_ID"
+curl -s "http://localhost:3457/close?target=TARGET_ID"
 ```
 
 ### POST /navigate?target=ID
 在已有 tab 中导航到新 URL，自动等待加载。**target 走 query（不带特殊字符的不透明 ID），URL 走 POST body**。
 ```bash
-curl -s -X POST --data-raw 'https://example.com' "http://localhost:3456/navigate?target=ID"
+curl -s -X POST --data-raw 'https://example.com' "http://localhost:3457/navigate?target=ID"
 ```
 > v2.5.3 起改为 POST。旧的 `GET /navigate?target=...&url=...` 返回 400 + 迁移指引，详见 `migration-2.5.3.md`。
 
@@ -48,50 +48,50 @@ curl -s -X POST --data-raw 'https://example.com' "http://localhost:3456/navigate
 ### GET /back?target=ID
 后退一页。
 ```bash
-curl -s "http://localhost:3456/back?target=ID"
+curl -s "http://localhost:3457/back?target=ID"
 ```
 
 ### GET /info?target=ID
 获取页面基础信息（title、url、readyState）。
 ```bash
-curl -s "http://localhost:3456/info?target=ID"
+curl -s "http://localhost:3457/info?target=ID"
 ```
 
 ### POST /eval?target=ID
 执行 JavaScript 表达式，POST body 为 JS 代码。
 ```bash
-curl -s -X POST "http://localhost:3456/eval?target=ID" -d 'document.title'
+curl -s -X POST "http://localhost:3457/eval?target=ID" -d 'document.title'
 ```
 
 ### POST /click?target=ID
 JS 层面点击（`el.click()`），POST body 为 CSS 选择器。自动 scrollIntoView 后点击。简单快速，覆盖大多数场景。
 ```bash
-curl -s -X POST "http://localhost:3456/click?target=ID" -d 'button.submit'
+curl -s -X POST "http://localhost:3457/click?target=ID" -d 'button.submit'
 ```
 
 ### POST /clickAt?target=ID
 CDP 浏览器级真实鼠标点击（`Input.dispatchMouseEvent`），POST body 为 CSS 选择器。先获取元素坐标，再模拟鼠标按下/释放。算真实用户手势，能触发文件对话框、绕过部分反自动化检测。
 ```bash
-curl -s -X POST "http://localhost:3456/clickAt?target=ID" -d 'button.upload'
+curl -s -X POST "http://localhost:3457/clickAt?target=ID" -d 'button.upload'
 ```
 
 ### POST /setFiles?target=ID
 给 file input 设置本地文件路径（`DOM.setFileInputFiles`），完全绕过文件对话框。POST body 为 JSON。
 ```bash
-curl -s -X POST "http://localhost:3456/setFiles?target=ID" -d '{"selector":"input[type=file]","files":["/path/to/file1.png","/path/to/file2.png"]}'
+curl -s -X POST "http://localhost:3457/setFiles?target=ID" -d '{"selector":"input[type=file]","files":["/path/to/file1.png","/path/to/file2.png"]}'
 ```
 
 ### GET /scroll?target=ID&y=3000&direction=down
 滚动页面。`direction` 可选 `down`（默认）、`up`、`top`、`bottom`。滚动后自动等待 800ms 供懒加载触发。
 ```bash
-curl -s "http://localhost:3456/scroll?target=ID&y=3000"
-curl -s "http://localhost:3456/scroll?target=ID&direction=bottom"
+curl -s "http://localhost:3457/scroll?target=ID&y=3000"
+curl -s "http://localhost:3457/scroll?target=ID&direction=bottom"
 ```
 
 ### GET /screenshot?target=ID&file=/tmp/shot.png
 截图。指定 `file` 参数保存到本地文件；不指定则返回图片二进制。可选 `format=jpeg`。
 ```bash
-curl -s "http://localhost:3456/screenshot?target=ID&file=/tmp/shot.png"
+curl -s "http://localhost:3457/screenshot?target=ID&file=/tmp/shot.png"
 ```
 
 ## /eval 使用提示
