@@ -10,6 +10,7 @@
 // 持久态只有 config.env 一处；override 是单次 spawn 通过命令行参数表达，不读 process.env。
 
 import fs from 'node:fs';
+import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -130,9 +131,74 @@ export async function selectBrowser(override = null) {
 // 兜底：扫描常用固定端口
 // 适用场景：用户手动 --remote-debugging-port=9222 启动浏览器，
 // 此时 DevToolsActivePort 可能不在默认 user-data-dir。
+// 返回 { port, wsPath }：仅接受真正应答 /json/version 的端口（有的端口在听
+// 但不提供 DevTools 发现接口），并从 webSocketDebuggerUrl 提取带 GUID 的
+// wsPath——新版 Chrome 的 WS 端点必须带 GUID，否则握手 403。
+async function probeWsEndpoint(port, path) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      resolve(ok);
+    };
+    try {
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          path,
+          method: 'GET',
+          headers: {
+            Connection: 'Upgrade',
+            Upgrade: 'websocket',
+            'Sec-WebSocket-Version': '13',
+            'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+          },
+        },
+        (res) => {
+          res.resume();
+          finish(false);
+        },
+      );
+      req.on('upgrade', (_res, socket) => {
+        socket.destroy();
+        finish(true);
+      });
+      req.on('error', () => finish(false));
+      req.setTimeout(1500, () => {
+        req.destroy();
+        finish(false);
+      });
+      req.end();
+    } catch {
+      finish(false);
+    }
+  });
+}
+
 export async function findFallbackPort() {
   for (const port of [9222, 9229, 9333]) {
-    if (await checkPort(port)) return port;
+    if (!(await checkPort(port))) continue;
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
+        signal: AbortSignal.timeout(1500),
+      });
+      if (res.ok) {
+        const info = await res.json();
+        const wsUrl = info && info.webSocketDebuggerUrl;
+        if (wsUrl) {
+          const wsPath = new URL(wsUrl).pathname || null;
+          return { port, wsPath };
+        }
+      }
+    } catch {
+      /* fall through to WS probe */
+    }
+    // Chrome 某些构建 /json/version 为 403/404，但 WS /devtools/browser 可握手
+    if (await probeWsEndpoint(port, '/devtools/browser')) {
+      return { port, wsPath: '/devtools/browser' };
+    }
   }
   return null;
 }
