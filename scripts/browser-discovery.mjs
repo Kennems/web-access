@@ -17,6 +17,7 @@
 // 持久态只有 config.env 一处（~/.web-access/config.env，见 user-data.mjs）；override 只走命令行参数，不读 process.env。
 
 import fs from 'node:fs';
+import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -235,7 +236,8 @@ export async function selectBrowser(override = null) {
   if (configuredEndpoint?.id === browser.id) {
     const { port } = configuredEndpoint;
     if (!(await checkPort(port))) return { kind: 'unavailable', ...facts, reason: 'offline', port, endpointSource: 'config-port' };
-    return { kind: 'ok', ...facts, browser: { ...browser, port, wsPath: null, endpointSource: 'config-port' } };
+    const wsPath = await resolveWsPath(port);
+    return { kind: 'ok', ...facts, browser: { ...browser, port, wsPath, endpointSource: 'config-port' } };
   }
 
   const active = readActivePort(browser.id);
@@ -272,4 +274,69 @@ export function explainUnavailable(result) {
     `  1. 先用系统命令打开 ${browser.label}（按平台自行选择，如 macOS 的 open -a），再重试`,
     `  2. 若仍失败，多半是远程调试开关没启用 —— 告诉用户：在 ${browser.label} 的${INSPECT_HINT}`,
   ];
+}
+
+// 从 /json/version 取带 GUID 的 wsPath。新版 Chrome 只接受 /devtools/browser/<GUID>，
+// 裸 /devtools/browser 握手会返回 403（non-101）——config-port 场景把 wsPath 传 null
+// 时连不上，根因就在这里。
+// /json/version 不可达时退回 WS 握手探测：能握上说明该构建允许裸路径。
+async function probeWsEndpoint(port, probePath) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      resolve(ok);
+    };
+    try {
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          path: probePath,
+          method: 'GET',
+          headers: {
+            Connection: 'Upgrade',
+            Upgrade: 'websocket',
+            'Sec-WebSocket-Version': '13',
+            'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+          },
+        },
+        (res) => {
+          res.resume();
+          finish(false);
+        },
+      );
+      req.on('upgrade', (_res, socket) => {
+        socket.destroy();
+        finish(true);
+      });
+      req.on('error', () => finish(false));
+      req.setTimeout(1500, () => {
+        req.destroy();
+        finish(false);
+      });
+      req.end();
+    } catch {
+      finish(false);
+    }
+  });
+}
+
+export async function resolveWsPath(port) {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    if (res.ok) {
+      const info = await res.json();
+      const wsUrl = info && info.webSocketDebuggerUrl;
+      if (wsUrl) return new URL(wsUrl).pathname || null;
+    }
+  } catch {
+    /* fall through to WS probe */
+  }
+  // Chrome 某些构建 /json/version 为 403/404，但 WS /devtools/browser 可握手
+  if (await probeWsEndpoint(port, '/devtools/browser')) return '/devtools/browser';
+  return null;
 }
